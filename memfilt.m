@@ -47,7 +47,7 @@ k = 0;
 
 figure(2)
 H3=polarplot(angle(dum),abs(dum));
-buff = framework(10)
+buff = circularbuffer(10)
 x_past = 0;
 y_past = 0;
 r_past = 0;
