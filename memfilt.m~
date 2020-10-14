@@ -42,24 +42,14 @@ H1= plot(dum,'o');
 axis(2*[-1 1 -1 1]);
 grid on
 k = 0;
-xunit = r * cos(th) + 0;
-yunit = r * sin(th) + 0;
-hold on
-H5 = plot(xunit,yunit)
-hold off
 
 
 radius = 1
 figure(2)
 H3=polarplot(angle(dum),abs(dum));
 hold on
-radius = 1;
-x = 0
-y = 0
-th = 0:pi/50:2*pi;
-xunit = 0 * cos(th) + x;
-yunit = 0 * sin(th) + y;
-[theta,rho] = cart2pol(xunit,yunit)
+theta = linspace(0,2*pi);
+rho = radius*sin(theta);
 H4 = polarplot(theta,rho)
 hold off
 
@@ -95,19 +85,14 @@ y_past = y;
 figure(1)
 H1.XData= real(d);
 H1.YData= imag(d);
-H5.XData = r * cos(th) + x;
-H5.YData = r * sin(th) + y;
+
 
 figure(2)
 
 H3.XData = angle(f);
 H3.YData = abs(f);
 
-xunit = r * cos(th) + 0;
-yunit = r * sin(th) + 0;
-[theta,rho] = cart2pol(xunit,yunit)
-H4.XData = theta
-H4.YData = rho
+H4.YData = 
 pause(N/Fs)
 drawnow
 end
