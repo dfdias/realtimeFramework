@@ -1,13 +1,15 @@
-function [f,x,y,r] = fit_correct(d,x_past,y_past,a1,a2,debug)
+function [f,x,y,r] = fit_correct(d,x_past,y_past,r_past,axy,ar,debug)
 
 g = d';
 XY = [real(g); imag(g)];%gera matriz para o hyperfix
 P = HyperSVD(XY');%foi escolhido o svd por uma questão de estabildiade
 x_present = P(1);
 y_present = P(2);
-x = a1*x_present + a2*x_past;
-y = a1*y_present + a2*y_past;
-r = P(3)
+r_present = P(3);
+x = axy*x_present + (1-axy)*x_past;
+y = axy*y_present + (1-axy)*y_past;
+r = ar*r_present + (1-ar)*r_past;
+r = P(3);
 g_x = XY(1,:)-x;%centra o arco na origem
 g_y = XY(2,:)-y;
 g = g_x + 1*j*g_y;%gera o sinal complexo

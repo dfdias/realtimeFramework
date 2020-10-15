@@ -1,5 +1,4 @@
 clear all
-close all
 clc
 
 T = 30
@@ -34,24 +33,30 @@ firdecim = dsp.FIRDecimator('DecimationFactor',D,'Numerator',h);
 
 s= sine1();              % Sinudoid wo (digital modulation)
 
-
+radius = 1
+th = 0:pi/50:2*pi;
 figure(1)
 dum= ones(1,N/D);             % Creates a dummy variable
 dum= dum+1j*dum;
 H1= plot(dum,'o');
-axis(2*[-1 1 -1 1]);
+axis(4*[-1 1 -1 1]);
 grid on
 k = 0;
+xunit = radius * cos(th) + 0;
+yunit = radius * sin(th) + 0;
+
+hold on
+phi = linspace(1,2*pi,200)
+c = (brm.A0*exp(j*phi) + brm.A1*exp(j*brm.theta1))
+H5 = plot(xunit,yunit,'o');
+H6 = plot(c);
+hold off
 
 
-radius = 1
+
 figure(2)
 H3=polarplot(angle(dum),abs(dum));
-hold on
-theta = linspace(0,2*pi);
-rho = radius*sin(theta);
-H4 = polarplot(theta,rho)
-hold off
+
 
 
 buff = circularbuffer(100,10)
@@ -64,6 +69,7 @@ idx = 1
 Nframes =round(Fs*T/N) ;
 for nf = 1:Nframes
 % Process the frame
+if nframe 
 r= brm.Evaluate(s);
 k= k+1;
 % Move the signal to the base band
@@ -77,22 +83,27 @@ buff.appends(d')%adiciona uma frame ao buffer
 
 % Later put this plot in debug mode
 idxs = buff.getorder() ;%obtem as frames ordenadas do buffer circular
-a = buff.buffer(:,idxs)
-df = a(:)
+a = buff.buffer(:,idxs);
+df = a(:);
 [f,x,y,r] = fit_correct(df,x_past,y_past,a1,a2,false);%aplicação de circle fit filtro e correção do arco
 x_past = x;%atualização das variáveis
 y_past = y;
 figure(1)
 H1.XData= real(d);
 H1.YData= imag(d);
-
+H5.XData = r * cos(th) + x;
+H5.YData = r * sin(th) + y;
 
 figure(2)
 
 H3.XData = angle(f);
 H3.YData = abs(f);
 
-H4.YData = 
+xunit = r * cos(th) + 0;
+yunit = r * sin(th) + 0;
+[theta,rho] = cart2pol(xunit,yunit);
+H4.XData = theta;
+H4.YData = rho;
 pause(N/Fs)
 drawnow
 end

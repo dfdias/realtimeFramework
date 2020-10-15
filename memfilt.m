@@ -1,5 +1,4 @@
 clear all
-close all
 clc
 
 T = 30
@@ -34,46 +33,46 @@ firdecim = dsp.FIRDecimator('DecimationFactor',D,'Numerator',h);
 
 s= sine1();              % Sinudoid wo (digital modulation)
 
-
+radius = 1
+th = 0:pi/50:2*pi;
 figure(1)
 dum= ones(1,N/D);             % Creates a dummy variable
 dum= dum+1j*dum;
 H1= plot(dum,'o');
-axis(2*[-1 1 -1 1]);
+axis(4*[-1 1 -1 1]);
 grid on
 k = 0;
-xunit = r * cos(th) + 0;
-yunit = r * sin(th) + 0;
+xunit = radius * cos(th) + 0;
+yunit = radius * sin(th) + 0;
+
 hold on
-H5 = plot(xunit,yunit)
+phi = linspace(1,2*pi,200)
+c = (brm.A0*exp(j*phi) + brm.A1*exp(j*brm.theta1))
+H5 = plot(xunit,yunit,'o');
+H6 = plot(c);
 hold off
 
 
-radius = 1
+
 figure(2)
 H3=polarplot(angle(dum),abs(dum));
-hold on
-radius = 1;
-x = 0
-y = 0
-th = 0:pi/50:2*pi;
-xunit = 0 * cos(th) + x;
-yunit = 0 * sin(th) + y;
-[theta,rho] = cart2pol(xunit,yunit)
-H4 = polarplot(theta,rho)
-hold off
+
 
 
 buff = circularbuffer(100,10)
 x_past = 0;
 y_past = 0;
 r_past = 0;
-a1 = 0.3;
-a2 = 0.7;
+axy = 0.01;
+ar = 0.01;
 idx = 1
 Nframes =round(Fs*T/N) ;
 for nf = 1:Nframes
 % Process the frame
+if nf == round(Nframes/2)
+    brm.theta1 = -pi/4;
+    brm.A1 = 2;
+end
 r= brm.Evaluate(s);
 k= k+1;
 % Move the signal to the base band
@@ -87,11 +86,12 @@ buff.appends(d')%adiciona uma frame ao buffer
 
 % Later put this plot in debug mode
 idxs = buff.getorder() ;%obtem as frames ordenadas do buffer circular
-a = buff.buffer(:,idxs)
-df = a(:)
-[f,x,y,r] = fit_correct(df,x_past,y_past,a1,a2,false);%aplicação de circle fit filtro e correção do arco
+a = buff.buffer(:,idxs);
+df = a(:);
+[f,x,y,r] = fit_correct(df,x_past,y_past,r_past,axy,ar,false);%aplicação de circle fit filtro e correção do arco
 x_past = x;%atualização das variáveis
 y_past = y;
+r_past = r;
 figure(1)
 H1.XData= real(d);
 H1.YData= imag(d);
@@ -105,9 +105,9 @@ H3.YData = abs(f);
 
 xunit = r * cos(th) + 0;
 yunit = r * sin(th) + 0;
-[theta,rho] = cart2pol(xunit,yunit)
-H4.XData = theta
-H4.YData = rho
+[theta,rho] = cart2pol(xunit,yunit);
+H4.XData = theta;
+H4.YData = rho;
 pause(N/Fs)
 drawnow
 end
