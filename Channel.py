@@ -10,6 +10,7 @@ class Channel:
         #gets dds gen object initialized
         self.fc = fc
         self.fs = fs
+        self.fsine = 0
         self.N = N
         self.ar = ar
         self.fb = fb
@@ -22,12 +23,12 @@ class Channel:
         
         self.gen = dds_gen(N,self.fs,self.ar,self.fb)
         self.wavelen = const.c/self.fc
-        self.t = np.arange(0,self.N-1)/self.fs
+        self.t = np.arange(0,self.N)/self.fs
         self.theta1 = np.remainder(-4*np.pi*self.d1/self.wavelen,2*np.pi)
         
 
     def evaluate(self,x):
-        b=self.gen.gen2(self.N)
+        b=self.gen.gen2()
         phase = np.remainder(-4*np.pi*self.d0/self.wavelen - self.Theta,2*np.pi)
         phase += -4*np.pi*b/self.wavelen
         n = self.nd*(np.transpose(np.random.randn(1,self.N)) +np.transpose(1j*np.random.randn(1,self.N)))

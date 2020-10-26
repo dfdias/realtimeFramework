@@ -8,8 +8,8 @@ fc = 5.8e9
 f0 = 1e5
 fs = 1e5
 N = 1000
-ar = 0.003
-fb = 0.31
+ar = 0.005
+fb = 10e3
 d1 = 2
 sig = 0.01
 D = 1000
@@ -23,12 +23,12 @@ brm.Theta = -np.pi/3
 brm.d0 = 1.009
 
 #sin generator
-sine1 = gen(N,fs,1,f0)
+sine1 = gen(N,fs,1,fb)
 
 #fir filter
 filt_coefs = sigs.firwin(500,1/D)
 nframes = np.round(fs*T/N).astype(np.int64)
 for nf in range (0,nframes):
-    s = sine1.gen(f0,N)
+    s = sine1.gen2()
     r = brm.evaluate(s)
 

@@ -19,7 +19,7 @@ class dds_gen:
     
     def wavetable(self):
         a = np.arange(0,self.N)
-        return self.ar*np.sin(2*np.pi*a/self.N)
+        return np.exp(2*1j*np.pi*a/self.N,dtype=np.cdouble)
     
 
     def gen(self,f0,NumSamp):
@@ -27,31 +27,31 @@ class dds_gen:
         N = self.N
     
         #asserts that the ratio is a rational number
-        x = np.zeros(NumSamp-1)
+        x = np.zeros(NumSamp,dtype=np.cdouble)
         sintable = self.sintable
         IncPhase = (f0/self.fs)*N 
         n = 0
         phi = self.IniPhase
-        for n in range(NumSamp-1) :
+        for n in range(NumSamp) :
             x[n] = sintable[int(np.round(phi))]
             phi += IncPhase
             if phi > N-1:
                 phi = phi - N
         self.IniPhase = phi
+        x = x*self.ar
         return x
     
     
-    def gen2(self,NumSamp):
+    def gen2(self):
         
         N = self.N
-    
         #asserts that the ratio is a rational number
-        x = np.zeros(NumSamp-1)
+        x = np.zeros(N,dtype=np.cdouble)
         sintable = self.sintable
         IncPhase = (self.f0/self.fs)*N 
         n = 0
         phi = self.IniPhase
-        for n in range(NumSamp-1) :
+        for n in range(N) :
             x[n] = sintable[int(np.round(phi))]
             phi += IncPhase
             if phi > N-1:
