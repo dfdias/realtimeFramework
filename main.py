@@ -2,6 +2,7 @@ from Channel import Channel
 from dds_gen import dds_gen as gen
 import numpy as np
 from scipy import signal as sigs
+from matplotlib import  pyplot as plt
 import time
 ##made only for mathematical MODEL
 fc = 5.8e9
@@ -23,12 +24,23 @@ brm.Theta = -np.pi/3
 brm.d0 = 1.009
 
 #sin generator
-sine1 = gen(N,fs,1,fb)
-
+sine1 = gen(N,fs,1,fb,True)
+s = sine1.gen2()
 #fir filter
 filt_coefs = sigs.firwin(500,1/D)
 nframes = np.round(fs*T/N).astype(np.int64)
-for nf in range (0,nframes):
-    s = sine1.gen2()
-    r = brm.evaluate(s)
 
+#initializing plots
+
+plt.figure(1)
+for nf in range (0,nframes):
+    r = brm.evaluate(s)
+    g = r*np.conj(s)
+    d = sigs.decimate(g,D,20,ftype='fir',zero_phase=True)
+    d_r = np.real(d)
+    d_i = np.imag(d)
+    plt.clf()
+    plt.plot(d_r,d_i,'.')
+    plt.axis=([-10, -9, 4.5, 6])
+    plt.pause(N/fs)
+plt.show()

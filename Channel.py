@@ -3,6 +3,7 @@ from dds_gen import dds_gen
 import numpy as np
 import scipy as sc
 from scipy import constants as const
+from matplotlib import pyplot as plt
 
 class Channel:
 
@@ -21,16 +22,19 @@ class Channel:
         self.A0 = 1
         self.A1 = 1
         
-        self.gen = dds_gen(N,self.fs,self.ar,self.fb)
+        self.gen = dds_gen(N,self.fs,self.ar,self.fb,False)
         self.wavelen = const.c/self.fc
         self.t = np.arange(0,self.N)/self.fs
         self.theta1 = np.remainder(-4*np.pi*self.d1/self.wavelen,2*np.pi)
-        
 
-    def evaluate(self,x):
+    def evaluate(self,s):
         b=self.gen.gen2()
-        phase = np.remainder(-4*np.pi*self.d0/self.wavelen - self.Theta,2*np.pi)
-        phase += -4*np.pi*b/self.wavelen
+        dummy = []
+        phase = np.fmod((-4*np.pi*self.d0)/self.wavelen - self.Theta,2*np.pi)
+        phase = phase - (4*np.pi*b/self.wavelen)
         n = self.nd*(np.transpose(np.random.randn(1,self.N)) +np.transpose(1j*np.random.randn(1,self.N)))
-        y = x*(self.A0*np.exp(1j*phase) + self.A1*np.exp(1j*self.theta1))+n
+        y =s@(self.A0*np.exp(1j*phase) + self.A1*np.exp(1j*self.theta1))+n
+        for row in y:
+            dummy.append(row[0])
+        y = np.asarray(dummy)
         return y
