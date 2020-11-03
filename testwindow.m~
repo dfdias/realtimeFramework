@@ -1,0 +1,20 @@
+clear all 
+clc
+N = 50
+%moving window breathing signal plot
+fs = 1e5
+sine1 = dsp.SineWave(1,20);
+sine1.SampleRate= fs;
+sine1.ComplexOutput= 0;
+sine1.SamplesPerFrame=N;
+% configuringwindow
+win = slidingwindow(N,10e3)
+figure(1)
+H1 = plot(m)
+while(1)
+   f = sine1()
+   win.put(f) 
+   H1.YData = 
+   drawnow
+   pause(N/fs)
+end

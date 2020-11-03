@@ -1,4 +1,4 @@
-function [f,x,y,r] = fit_correct(d,x_past,y_past,r_past,axy,ar,debug)
+function [f,x,y,r] = fit_correct(d,x_past,y_past,r_past,axy,ar,filter_handle,debug)
 
 g = d';
 XY = [real(g); imag(g)];%gera matriz para o hyperfix
@@ -13,6 +13,6 @@ r = P(3);
 g_x = XY(1,:)-x;%centra o arco na origem
 g_y = XY(2,:)-y;
 g = g_x + 1*j*g_y;%gera o sinal complexo
-g = arc_correct(g,debug);%correção de arco
+g = arc_correct(g,filter_handle,debug);%correção de arco
 f = g;
 
