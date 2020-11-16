@@ -39,6 +39,8 @@ classdef BioRadarChannel
             phi= phi - 4*pi*b/obj.lambda;
             n= obj.nd*(randn(1,obj.N)'+1j*randn(1,obj.N)');
             y= x .* (obj.A0*exp(j*phi) + obj.A1*exp(j*obj.theta1)) + n;
+%             fprintf("X= %d\n",real(obj.A1*exp(j*obj.theta1)))
+%             fprintf("Y= %d\n",imag(obj.A1*exp(j*obj.theta1)))
         end
         
         function brc = BioRadarChannel(Fs,Fc,N,ar,Fb,d1)

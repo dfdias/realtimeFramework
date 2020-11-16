@@ -9,7 +9,6 @@ r_present = P(3);
 x = axy*x_present + (1-axy)*x_past;
 y = axy*y_present + (1-axy)*y_past;
 r = ar*r_present + (1-ar)*r_past;
-r = P(3);
 g_x = XY(1,:)-x;%centra o arco na origem
 g_y = XY(2,:)-y;
 g = g_x + 1*j*g_y;%gera o sinal complexo

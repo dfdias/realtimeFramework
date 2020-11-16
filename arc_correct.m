@@ -1,7 +1,7 @@
 function phi = arc_correct(g,filterobj,debug)
 
 phi = angle(g);
-%phi = unwrap(phi);%tribolet
+phi = unwrap(phi);%tribolet
 phi = filter(filterobj.B,filterobj.A,phi); %filtragem passo a alto
 
 if debug == true

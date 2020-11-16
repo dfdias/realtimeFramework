@@ -1,17 +1,15 @@
 clear all
 clc
 
-f= 10
-n = 2
-ocb = circularbuffer(f,n)
+F= 3;
+N = 2;
+ocb = circularbuffer(F,N);
+x= 1:100;
 
-for i = 1 : 40
-    a = randn(1,n)
-    ocb.appends(a)
-    idx = ocb.getorder()
-    buffer = ocb.buffer()
-    a = ocb.buffer(:,idx)
-    a(:)
+for n = 1:2:40
+    b = x(n:n+N-1);
+    ocb.put(b)
+    ocb.get()
     pause
 end
 

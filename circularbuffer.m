@@ -16,17 +16,18 @@ classdef circularbuffer < handle
             obj.buffer = zeros(obj.N,obj.len) %initializes the frame buffer asa zero meatrix with lenx X N dimension
         end
         
-       function appends(obj,frame)      %adds frame to buffer
+       function put(obj,frame)      %adds frame to buffer
            obj.buffer(:,obj.p1+1) = frame;%index offset
            obj.p1 = mod(obj.p1 +1,obj.len);   %increments the write pointer
        end
         
-       function y = getorder(obj) 
-            y = 0;
+        
+       function y = get(obj)
             idx = obj.p1 : 1 : obj.p1+obj.len-1; %generates a vector of indexes
              %applies the module to adapt the indexes generated to the actual vector lenght and apllies a offset to avoid non positive integer error
             idx = mod(idx,obj.len)+1;  
-            y = idx;
+            a = obj.buffer(:,idx);
+            y = a(:);    
         end
     end
 end

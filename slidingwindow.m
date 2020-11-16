@@ -3,10 +3,10 @@ classdef slidingwindow < handle
     
     properties
         
-        len  %frame length 
-        N     %number of window samples
-        window % window array
-        dir %slide direction
+        len     %frame length 
+        N       %number of window samples
+        window  % window array
+        dir     %slide direction
 
     end
     
