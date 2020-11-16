@@ -1,46 +1,72 @@
 from Channel import Channel
-from dds_gen import dds_gen as gen
+from dds_gen import dds_gen
 import numpy as np
+from circbuffer import circbuffer
+from circle_fit import hyper_fit
 from scipy import signal as sigs
 from matplotlib import  pyplot as plt
 import time
-##made only for mathematical MODEL
-fc = 5.8e9
-f0 = 1e5
-fs = 1e5
+from queue import Queue as q
+
+# Variable declaration
+Fs = 1e5
 N = 1000
-ar = 0.005
-fb = 10e3
-d1 = 2
-sig = 0.01
-D = 1000
-T = 30
+D = 100
+z = 0
+# Simulation mode selection
+realtime = False
+debug = True
+T = 30                                                  # simulation time
+Nframes = np.round((Fs*T)/N)
 
-brm = Channel(fs,fc,N,ar,fb,d1)
-brm.nd = 0.005
-brm.A0 = 0.1
-brm.A1 = 1
-brm.Theta = -np.pi/3
-brm.d0 = 1.009
+# Signal generator
+sine1 = dds_gen(N, Fs, 1, 10e3, True)
 
-#sin generator
-sine1 = gen(N,fs,1,fb,True)
-s = sine1.gen2()
-#fir filter
-filt_coefs = sigs.firwin(500,1/D)
-nframes = np.round(fs*T/N).astype(np.int64)
+# HighPass Filter
+fa = Fs/D
+B,A = sigs.butter(1,0.5/(fa/2),btype='high')
 
-#initializing plots
+# Memory Filter Coefficients
+axy = 0.5                                              # coordinates gain
+ar = 0.5                                               # radius gain
+# Circular Buffer Declaration
+buff = circbuffer(100, 10)
 
-plt.figure(1)
-for nf in range (0,nframes):
-    r = brm.evaluate(s)
-    g = r*np.conj(s)
-    d = sigs.decimate(g,D,20,ftype='fir',zero_phase=True)
-    d_r = np.real(d)
-    d_i = np.imag(d)
-    plt.clf()
-    plt.plot(d_r,d_i,'.')
-    plt.axis=([-10, -9, 4.5, 6])
-    plt.pause(N/fs)
+# initializing plots
+
+if realtime is False:
+# main cycle
+    for nf in range (0,Nframes):
+        s = sine1.gen2()
+        g = rx@np.conj(s)
+        d = sigs.decimate(g, D, 20, ftype='fir', zero_phase=True)
+
+        # buffer
+        buff.put(d)
+        df = buff.get()
+
+        # Circle Fitting
+        auxA = np.real(df)
+        auxB = np.imag(df)
+        P = hyper_fit([auxA, auxB])
+
+        # low pass memory filter
+        x = axy*P[0] + (1-axy)*x
+        y = axy*P[1] + (1-axy)*y
+        r = ar*P[3] + (1-ar)*r
+
+        # Signal Filtering
+        dfit = (np.real(d)-x) + 1j*(np.imag(d)-y)
+
+        # Angle conditioning
+        phi = np.angle(dfit)
+        phi = np.unwrap(phi)
+        phi,z = sigs.lfilter(B, A, phi, zi=z)
+
+        # Window put
+
+if realtime is True :
+    print("Operating in Realtime") #TBD
+
+        # Plot Update
 plt.show()
