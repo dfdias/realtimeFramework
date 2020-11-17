@@ -1,46 +1,86 @@
-from Channel import Channel
 from dds_gen import dds_gen
 import numpy as np
 from circbuffer import circbuffer
-from circle_fit import hyper_fit
+import circle_fit
 from scipy import signal as sigs
-from matplotlib import  pyplot as plt
+from matplotlib import pyplot as plt
+from window import window
+import scipy.io
 import time
-from queue import Queue as q
 
-# Variable declaration
-Fs = 1e5
-N = 1000
-D = 100
-z = 0
+import queue
+
+
+
 # Simulation mode selection
 realtime = False
 debug = True
-T = 30                                                  # simulation time
-Nframes = np.round((Fs*T)/N)
+# File reading
+mat = scipy.io.loadmat('sintetico.mat')
+signal = mat['x']
+signal = signal.flatten()
+
+
+# Variable declaration
+N = 1000
+D = 100
+z = np.array([0])
+x = 0
+y = 0
+r = 0
+Nd = round(N / D)
+if realtime is False :
+    Fs = mat['Fs'][0]
+    Fo = mat['Fo']
+    Fs = Fs[0]
+    Fo = Fo[0]
+    Nframes = int(len(signal)/N)
+    frametime = N/Fs
+else :
+    Fs = 1e5
+    T = 30  # simulation time
+    Nframes = round((Fs * T) / N)
+    frametime = N/Fs
+
+
+
 
 # Signal generator
-sine1 = dds_gen(N, Fs, 1, 10e3, True)
+sine1 = dds_gen(N, Fs, 1, Fo, True)
 
 # HighPass Filter
 fa = Fs/D
 B,A = sigs.butter(1,0.5/(fa/2),btype='high')
 
 # Memory Filter Coefficients
-axy = 0.5                                              # coordinates gain
-ar = 0.5                                               # radius gain
+axy = 0.1                                              # coordinates gain
+ar = 0.51                                              # radius gain
 # Circular Buffer Declaration
-buff = circbuffer(100, 10)
+buff = circbuffer(Nd,Nd*100,'complex')
 
+# Sliding window Declaration
+win = window(int(Nd),int(500*Nd),'right')
 # initializing plots
+plt.ion()
+fig = plt.figure()
+
+# plot2 sliding window
+lenX = len(win.get())
+t = np.arange(0, lenX)/(Fs/D)
+fig2 = plt.figure()
+plt2 = plt.plot(t, win.get())
+plt.ylim(-(np.max(np.abs(signal))),(np.max(np.abs(signal))))
+
 
 if realtime is False:
 # main cycle
     for nf in range (0,Nframes):
+        time.time()
+        rx = signal[nf*N:(nf+1)*N]
         s = sine1.gen2()
-        g = rx@np.conj(s)
+        g = rx*np.conj(s)
         d = sigs.decimate(g, D, 20, ftype='fir', zero_phase=True)
-
+        d.flatten()
         # buffer
         buff.put(d)
         df = buff.get()
@@ -48,7 +88,7 @@ if realtime is False:
         # Circle Fitting
         auxA = np.real(df)
         auxB = np.imag(df)
-        P = hyper_fit([auxA, auxB])
+        P = circle_fit.least_squares_circle([auxA, auxB])
 
         # low pass memory filter
         x = axy*P[0] + (1-axy)*x
@@ -61,9 +101,16 @@ if realtime is False:
         # Angle conditioning
         phi = np.angle(dfit)
         phi = np.unwrap(phi)
-        phi,z = sigs.lfilter(B, A, phi, zi=z)
+        phi,z = sigs.lfilter(B, A, phi, zi = z)
 
-        # Window put
+        win.put(phi)
+        # Plot updates
+        plt2[0].set_ydata(win.get())
+        fig2.canvas.draw()
+        fig2.canvas.flush_events()
+
+       # runtime = time.time()
+        time.sleep(frametime)
 
 if realtime is True :
     print("Operating in Realtime") #TBD
