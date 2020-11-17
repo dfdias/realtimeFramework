@@ -13,7 +13,7 @@
 % For the Mode 2 we consider a sample rate of 100Hz and the signal is
 % already at the base band and decimated
 
-% Jose Vieira
+% Jose Vieira e Duarte Dias
 % 30/08/2020
 
 % ===========================================================
@@ -42,9 +42,9 @@ clear all
 close all
 clc
 
-Mode_f= 3;         % Select the mode of operation
+Mode_f= 2;         % Select the mode of operation
 debug_f= 0;        % Set the debug mode of operation
-filename_f= 'realsignals/seg_22.mat';      % File name for Mode 2 od operation
+filename_f= 'realsignals/OutFiles/I_seg_23.mat';      % File name for Mode 2 od operation
 
 
 T_f= 30;           % Acquisition time in seconds. Only for mode 1 and 3
@@ -85,10 +85,16 @@ switch Mode_f,
         
     case 2       % Signal from a real acquisition (baseband decimated)
         disp('Signal from a recorded acquisition')
-        Fs_f= 100;                       % Sampling frequency (manually set)
-        N_f= 100;                        % Number of Samples per Frame
-        g_f= load(filename_f);             % Read all the data
-        g_f= g_f.sinal;
+        g_f= load(filename_f); 
+        Fs_f = g_f.Fs;                       % Sampling frequency (manually set)
+        Fo_f = g_f.Fo
+       
+        N_f= 1000;
+        D_f = 100
+        Nd_f = N_f/D_f
+        % Number of Samples per Frame
+             % Read all the data
+        g_f= g_f.x;
         MG_f= max(abs(g_f));               % 
         
     case 3       % Real Time DSP using an USRP
@@ -172,6 +178,15 @@ if (Mode_f == 1) | (Mode_f == 3),
     s_f= sine1_f();
 
 elseif (Mode_f == 2),
+    % Create the sinusoidal generator objec
+    sine1_f = dsp.SineWave(1,Fo_f);
+    sine1_f.SampleRate= Fs_f;
+    sine1_f.ComplexOutput= 1;
+    sine1_f.SamplesPerFrame= N_f;
+    
+    % Create the Decimator object
+    h_f= fir1(500,1/D_f);
+    firdecim_f = dsp.FIRDecimator('DecimationFactor',D_f,'Numerator',h_f);
     Nframes_f= floor(length(g_f)/N_f);      % Number of Frames to Process
     T_f= Nframes_f*N_f/Fs_f;
 end
