@@ -32,7 +32,7 @@ Fo= 1e4;
 L= Fs/Fsin;
 % Create the Decimator object
 
-h= fir1(1000,1/L);
+h= fir1(10000,1/L);
 firinterp = dsp.FIRInterpolator('InterpolationFactor',L,'Numerator',h);
 
 

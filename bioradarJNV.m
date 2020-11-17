@@ -44,7 +44,7 @@ clc
 
 Mode_f= 2;         % Select the mode of operation
 debug_f= 0;        % Set the debug mode of operation
-filename_f= 'realsignals/OutFiles/I_seg_23.mat';      % File name for Mode 2 od operation
+filename_f= 'sintetico.mat'%'realsignals/OutFiles/I_seg_23.mat';      % File name for Mode 2 od operation
 
 
 T_f= 30;           % Acquisition time in seconds. Only for mode 1 and 3
@@ -90,7 +90,7 @@ switch Mode_f,
         Fo_f = g_f.Fo
        
         N_f= 1000;
-        D_f = 100
+        D_f = Fs_f/N_f
         Nd_f = N_f/D_f
         % Number of Samples per Frame
              % Read all the data
@@ -237,7 +237,7 @@ if Mode_f == 3
     Nd = N_f/D_f;
     buff = circularbuffer(10*Nd,Nd);
 else
-    buff = circularbuffer(10*N_f,N_f)
+    buff = circularbuffer(10*Nd_f,Nd_f)
 
 end
 
@@ -251,7 +251,7 @@ if Mode_f == 3
     Nd = N_f/D_f;
    win = slidingwindow(Nd,Nd*50,'left')
 else
-   win = slidingwindow(N_f,N_f*10,'left')
+   win = slidingwindow(Nd_f,Nd_f*100,'left')
 end
 
 %% Plot Setup
@@ -283,11 +283,11 @@ hold off
 
 H4 = plot(win.get())
 if Mode_f == 1
-    H4.XData = (0:N_f*10-1)/(Fs_f/D_f)
+    H4.XData = (0:Nd_f*10-1)/(Fs_f/D_f)
 elseif Mode_f == 2
-     H4.XData = (0:N_f*10-1)/(Fs_f)
+     H4.XData = (0:Nd_f*100-1)/(Fs_f/D_f)
 end
-axis([0 inf -0.5 0.5])
+axis([0 inf -4 4])
 grid on
 % ================================================================
 % ================================================================

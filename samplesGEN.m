@@ -5,7 +5,7 @@ clc
 %% Setting channel model constants
 
 Fc= 5.8e9;              % Analog Carrier Frequency
-Fo= 1e5;                % Transmitted sinusoid frequency
+Fo= 1e4;                % Transmitted sinusoid frequency
 Fs= 1e5;                % Sampling Frequency
 N= 1000;                % Number of samples per frame
 ar= 0.005;              % Breathing amplitude
@@ -69,4 +69,8 @@ for i = 1:Nframes
 s = sine1();
 r=  brm.Evaluate(s);
 buff.put(r)
+
 end
+x = buff.get();
+
+ save('sintetico.mat','x','Fs','Fo')
