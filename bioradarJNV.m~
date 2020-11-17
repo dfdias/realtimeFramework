@@ -367,8 +367,8 @@ for nf= 1:Nframes_f,
         [filtered,z] = filter(B,A,phi,z);
          %filtragem passo a alto
         win.put(filtered)
-        [pxx,f] = pwelch(win.get(),[],[],4096,Nd_f);
-        f(find(pxx == max(pxx)))
+        [pxx,f] = pwelch(win.get(),[],[],4096,Fs/D);
+ f(find(pxx == max(pxx)))
     % ================================================================
     % ================================================================
     
