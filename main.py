@@ -56,7 +56,7 @@ B,A = sigs.butter(1,0.5/(fa/2),btype='high')
 axy = 0.1                                              # coordinates gain
 ar = 0.51                                              # radius gain
 # Circular Buffer Declaration
-buff = circbuffer(Nd,Nd*100,'complex')
+buff = circbuffer(Nd,Nd*10,'complex')
 
 # Sliding window Declaration
 win = window(int(Nd),int(500*Nd),'right')
@@ -69,8 +69,8 @@ lenX = len(win.get())
 t = np.arange(0, lenX)/(Fs/D)
 fig2 = plt.figure()
 plt2 = plt.plot(t, win.get())
-plt.ylim(-(np.max(np.abs(signal))),(np.max(np.abs(signal))))
-
+#plt.ylim(-(np.max(np.abs(signal))),(np.max(np.abs(signal))))
+plt.ylim(-1,1)
 
 if realtime is False:
 # main cycle
@@ -84,12 +84,13 @@ if realtime is False:
         # buffer
         buff.put(d)
         df = buff.get()
-
+        #print(df)
         # Circle Fitting
         auxA = np.real(df)
         auxB = np.imag(df)
+        print(auxA)
         P = circle_fit.least_squares_circle([auxA, auxB])
-
+        print(P)
         # low pass memory filter
         x = axy*P[0] + (1-axy)*x
         y = axy*P[1] + (1-axy)*y
