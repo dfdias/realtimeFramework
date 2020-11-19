@@ -12,10 +12,10 @@ classdef slidingwindow < handle
     
     methods 
         function obj = slidingwindow(len,N,dir) %constructor
-            obj.len = len
-            obj.N = N
+            obj.len = len;
+            obj.N = N;
             obj.window = zeros(1,N);
-            obj.dir = dir
+            obj.dir = dir;
         end
         
        function put(obj,frame)      %adds frame to window

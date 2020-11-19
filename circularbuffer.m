@@ -10,10 +10,10 @@ classdef circularbuffer < handle
     
     methods 
         function obj = circularbuffer(len,N) %constructor
-            obj.p1 = 0 %write pointer| aponta para a posição de escrita
-            obj.len = len
-            obj.N = N
-            obj.buffer = zeros(obj.N,obj.len) %initializes the frame buffer asa zero meatrix with lenx X N dimension
+            obj.p1 = 0; %write pointer| aponta para a posição de escrita
+            obj.len = len;
+            obj.N = N;
+            obj.buffer = zeros(obj.N,obj.len); %initializes the frame buffer asa zero meatrix with lenx X N dimension
         end
         
        function put(obj,frame)      %adds frame to buffer
