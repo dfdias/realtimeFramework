@@ -1,120 +1,171 @@
+import uhd
 from dds_gen import dds_gen
-import numpy as np
-from circbuffer import circbuffer
-import circle_fit
-from scipy import signal as sigs
-from matplotlib import pyplot as plt
-from window import window
-import scipy.io
+import threading
 import time
-
+from multiprocessing import Process
+from scipy.io import savemat
+import numpy as np
 import queue
+from plotter import plotter
+
+CLOCK_TIMEOUT = 1000  # 1000mS timeout for external clock locking
+INIT_DELAY = 0.05  # 50mS initial delay before transmit
+
+
+def main():
+    '''Estou a seguir quase à linha o código que fiz em C++'''
+
+    # RF Frontend Setup
+    device_args = "serial=31167B6"
+    subdevTX = "A:A"
+    subdevRX = "A:A"
+    ant_tx = "TX/RX"
+    ant_rx = "RX2"
+    rx_gain = 70
+    tx_gain = 70
+    ref = "internal"
+    # sampRateSig = 400e3;
+    Fs = 400e3
+    N = 2040
+    F0 = 5.9e9
+    periodsamps = round(Fs / 10e3)
+    gen = dds_gen(periodsamps, Fs, 1, 10e3, True)
+
+    usrp = uhd.usrp.MultiUSRP(device_args)
+    usrp.set_rx_subdev_spec(uhd.usrp.SubdevSpec(subdevRX))
+    usrp.set_tx_subdev_spec(uhd.usrp.SubdevSpec(subdevTX))
+    print(usrp.get_pp_string())
+    usrp.set_clock_source(ref)
+    usrp.set_rx_antenna(ant_rx)
+    usrp.set_tx_antenna(ant_tx)
+    usrp.set_rx_bandwidth(Fs)
+    usrp.set_tx_bandwidth(Fs)
+    usrp.set_rx_rate(Fs)
+    usrp.set_tx_rate(Fs)
+    usrp.set_rx_gain(rx_gain)
+    usrp.set_tx_gain(tx_gain)
+
+    tune = uhd.types.TuneRequest(target_freq=F0)  # this one was an hard sob
+
+    usrp.set_tx_freq(tune_request=tune, chan=0)
+    usrp.set_rx_freq(tune_request=tune, chan=0)
+
+    usrp.set_time_now(uhd.types.TimeSpec(0.0))
+
+    print("USRP CONFIG REPORT")
+    print(usrp.get_pp_string())
+    print("USRP RX ANTENNA =>", usrp.get_rx_antenna())
+    print("USRP TX ANTENNA =>", usrp.get_tx_antenna())
+    print("USRP RX RATE =>", usrp.get_rx_rate())
+    print("USRP TX RATE =>", usrp.get_tx_rate())
+    print("USRP RX GAIN =>", usrp.get_rx_gain(), "dB")
+    print("USRP TX GAIN =>", usrp.get_tx_gain(), "dB")
+    print("USRP TX freq =>", usrp.get_tx_freq() / 1e9, "GHz")
+    print("USRP RX freq =>", usrp.get_rx_freq() / 1e9, "GHz")
+
+    b = True
+    #tx(usrp,Fs,1e6)
+    # while b is True:
+    #     a = usrp.recv_num_samps(int(10e6),5e9,5e6)
+    #     b = True
+    q = queue.Queue()
+    plots = plotter(Fs)
+
+    st_args = uhd.usrp.StreamArgs("fc32", "sc16")
+    st_args.channels = (0,)
+    metadata = uhd.types.RXMetadata()
+    streamer = usrp.get_rx_stream(st_args)
+    channels = st_args.channels
+    buffer_samps = streamer.get_max_num_samps()
+    recv_buffer = np.zeros((1,2040), dtype=np.complex64)
+    num_samps = 1000 * buffer_samps
+    result = np.empty((len(channels), num_samps), dtype=np.complex64)
+    recv_samps = 0
+    stream_cmd = uhd.types.StreamCMD(uhd.types.StreamMode.start_cont)
+    stream_cmd.stream_now = True
+    streamer.issue_stream_cmd(stream_cmd)
+    samps = np.array([], dtype=np.complex64)
+    x = threading.Thread(target=tx, args=(usrp, Fs, 10e3,),daemon=True)
+    x.start()
+
+    idx = 1
+    b = True
+    while b is True:
+        idx += 1
+        #print(idx)
+        samps = streamer.recv(recv_buffer, metadata)
+        a = recv_buffer.flatten()
+        t1 = time.time()
+        q.put(a)
+        t1elapsed = time.time()-t1
+        print(t1elapsed)
+        recv_buffer = np.zeros((1, 2040), dtype=np.complex64)
+        if idx > 1e4:
+            b = False
+            x = np.zeros((1,2040*10000),dtype=np.complex64)
+            i = 0
+            while q.empty() is False:
+                x[0,i*2040:(i+1)*2040] = q.get()
+            #x = np.asarray(a)
+            b = False
+
+    i = 0
+    mdic={"Fs": Fs, "x": x}
+    print(mdic)
+    savemat("received.mat",mdic)
+    print(idx)        # #if metadata.error_code != uhd.types.RXMetadataErrorCode.none:
+        #  # print(metadata.strerror())
+        # if samps.size > 0:
+        #     real_samps = min(num_samps - recv_samps, samps)
+        #     result[:, recv_samps:recv_samps + real_samps] = recv_buffer[:, 0:real_samps]
+        #     recv_samps += real_samps
 
 
 
-# Simulation mode selection
-realtime = False
-debug = True
-# File reading
-mat = scipy.io.loadmat('sintetico.mat')
-signal = mat['x']
-signal = signal.flatten()
 
 
-# Variable declaration
-N = 1000
-D = 100
-z = np.array([0])
-x = 0
-y = 0
-r = 0
-Nd = round(N / D)
-if realtime is False :
-    Fs = mat['Fs'][0]
-    Fo = mat['Fo']
-    Fs = Fs[0]
-    Fo = Fo[0]
-    Nframes = int(len(signal)/N)
-    frametime = N/Fs
-else :
-    Fs = 1e5
-    T = 30  # simulation time
-    Nframes = round((Fs * T) / N)
-    frametime = N/Fs
+def tx(usrp,Fs,Fsine):
+
+    dds = dds_gen(2040,Fs,1,Fsine,True)
+    # txworker preparation
+    st_args = uhd.usrp.StreamArgs("fc32", "sc16")
+    st_args.channels = (0,)
+    streamer = usrp.get_tx_stream(st_args)
+    metadata = uhd.types.TXMetadata()
+    buffer_samps = streamer.get_max_num_samps()
+    print(buffer_samps)
+    # wave configuration
+    waveforms = {
+        "sine": lambda n, tone_offset, rate: np.exp(n * 2j * np.pi * tone_offset / rate),
+        "square": lambda n, tone_offset, rate: np.sign(waveforms["sine"](n, tone_offset, rate)),
+        "const": lambda n, tone_offset, rate: 1 + 1j,
+        "ramp": lambda n, tone_offset, rate:
+        2 * (n * (tone_offset / rate) - np.floor(float(0.5 + n * (tone_offset / rate))))
+    }
+    A = 1
+    type = "sine"
+    waveform_proto = np.array(
+        list(map(lambda n: A * waveforms[type](n, Fsine, Fs),
+            np.arange(
+                int(10 * np.floor(Fs / Fsine)),
+                dtype=np.complex64))),
+        dtype=np.complex64)
+    txdic ={"Fs": Fs, "x": waveform_proto}
+    savemat("proto.mat",txdic)
+    channels = st_args.channels
+    proto_len = waveform_proto.shape[-1]
+    if proto_len < buffer_samps:
+        waveform_proto = np.tile(waveform_proto,
+                                 (1, int(np.ceil(float(buffer_samps) / proto_len))))
+        proto_len = waveform_proto.shape[-1]
+
+    if len(waveform_proto.shape) == 1:
+        waveform_proto = waveform_proto.reshape(1, waveform_proto.size)
+    if waveform_proto.shape[0] < len(channels):
+        waveform_proto = np.tile(waveform_proto[0], (len(channels), 1))
+    while True:
+        streamer.send(waveform_proto, metadata)
 
 
-
-
-# Signal generator
-sine1 = dds_gen(N, Fs, 1, Fo, True)
-
-# HighPass Filter
-fa = Fs/D
-B,A = sigs.butter(1,0.5/(fa/2),btype='high')
-
-# Memory Filter Coefficients
-axy = 0.1                                              # coordinates gain
-ar = 0.51                                              # radius gain
-# Circular Buffer Declaration
-buff = circbuffer(Nd,Nd*10,'complex')
-
-# Sliding window Declaration
-win = window(int(Nd),int(500*Nd),'right')
-# initializing plots
-plt.ion()
-fig = plt.figure()
-
-# plot2 sliding window
-lenX = len(win.get())
-t = np.arange(0, lenX)/(Fs/D)
-fig2 = plt.figure()
-plt2 = plt.plot(t, win.get())
-#plt.ylim(-(np.max(np.abs(signal))),(np.max(np.abs(signal))))
-plt.ylim(-1,1)
-
-if realtime is False:
-# main cycle
-    for nf in range (0,Nframes):
-        time.time()
-        rx = signal[nf*N:(nf+1)*N]
-        s = sine1.gen2()
-        g = rx*np.conj(s)
-        d = sigs.decimate(g, D, 20, ftype='fir', zero_phase=True)
-        d.flatten()
-        # buffer
-        buff.put(d)
-        df = buff.get()
-        #print(df)
-        # Circle Fitting
-        auxA = np.real(df)
-        auxB = np.imag(df)
-        print(auxA)
-        P = circle_fit.least_squares_circle([auxA, auxB])
-        print(P)
-        # low pass memory filter
-        x = axy*P[0] + (1-axy)*x
-        y = axy*P[1] + (1-axy)*y
-        r = ar*P[3] + (1-ar)*r
-
-        # Signal Filtering
-        dfit = (np.real(d)-x) + 1j*(np.imag(d)-y)
-
-        # Angle conditioning
-        phi = np.angle(dfit)
-        phi = np.unwrap(phi)
-        phi,z = sigs.lfilter(B, A, phi, zi = z)
-
-        win.put(phi)
-        # Plot updates
-        plt2[0].set_ydata(win.get())
-        fig2.canvas.draw()
-        fig2.canvas.flush_events()
-
-       # runtime = time.time()
-        time.sleep(frametime)
-
-if realtime is True :
-    print("Operating in Realtime") #TBD
-
-        # Plot Update
-plt.show()
+if __name__ == "__main__":
+    main()
