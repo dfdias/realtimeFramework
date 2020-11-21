@@ -42,7 +42,7 @@ clear all
 close all
 clc
 
-Mode_f= 1;         % Select the mode of operation
+Mode_f= 2;         % Select the mode of operation
 debug_f= 0;        % Set the debug mode of operation
 filename_f= 'realsignals/OutFiles/I_seg_22.mat';      % File name for Mode 2 od operation
 
@@ -62,7 +62,7 @@ switch Mode_f,
         d1_f= 2;                 % Equivalent distance to the static objects
         sig_f= 0.01;             % Channel noise STD
         D_f= 100;                % Decimation Factor
-        Nd_f = N_f/D_f
+        
         % Create the BioRadar channel object
         brm_f= BioRadarChannel(Fs_f,Fc_f,N_f,ar_f,Fb_f,d1_f);
         brm_f.nd= 0.005;         % Noise Density Power
@@ -91,7 +91,7 @@ switch Mode_f,
         N_f= 2000;                         % Number of Samples per Frame
         D_f= 100;                          % Decimation Factor
         MG_f= max(abs(g_f));               % 
-        Nd_f = N_f/D_f
+        
     case 3       % Real Time DSP using an USRP
         disp('Real Time DSP using an USRP')
         % Check for the presence of the USRP
@@ -203,14 +203,14 @@ Fa= Fs_f/D_f;
 [B,A]= butter(1,0.5/(Fa/2),'high');
 
 %% Circular Buffer
-buff = circularbuffer(Nd_f*10,Nd_f);
+buff = circularbuffer(100,10);
 
 %% fitcorrect memory filter gains setup
 axy= 0.1; % coordinates gain
 ar= 0.1;  %radius gain
 
 %% Sliding window for time plot
-win = slidingwindow(Nd_f,Nd_f*200,'left');
+win = slidingwindow(10,N_f*10,'left');
 
 %% Plot Setup
 figure(1)                % Creates a dummy variable 
@@ -220,10 +220,11 @@ H1= plot(dum,'o');
 axis(1*[-1 1 -1 1]);
 grid on
 %generates the circle plot
-if Mode_f == 2 && Mode_f == 1,
+if Mode_f == 2,
     radius = 1;
     th = linspace(0,2*pi,200);
     k = 0;
+    th = linspace(0,2*pi,200)
     xunit = radius * cos(th) + 0;
     yunit = radius * sin(th) + 0;
     hold on
@@ -235,12 +236,11 @@ end
 
 figure(2)
 H4 = plot(win.get());
-H4.XData = (0:Nd_f*200-1)/(Fs_f/D_f);
-axis([0 inf -1 1]);
+H4.XData = (0:1e4-1)/(Fs_f/D_f);
+axis([0 inf -5 5]);
 grid on
 % =========================================================<=======
 % ================================================================
-    th = linspace(0,2*pi,200);
 
 
 %% Main Loop DSP
@@ -287,18 +287,13 @@ for nf= 1:Nframes_f,
         d_f = firdecim_f(g_f);
     end
     if (Mode_f == 2)
-        g = r_f.*conj(s_f);
-        d_f = firdecim_f(g);
-    end
-    if (Mode_f == 1)
-        g = r_f.*conj(s_f);
-        d_f = firdecim_f(g);
-    end
+        g_f = r_f
+        d_f = firdecim_f(g_f)
         
      
     % Later put this plot in debug mode
-        H1.XData= real(d_f);
-        H1.YData= imag(d_f);
+%        H1.XData= real(d_f);
+ %       H1.YData= imag(d_f);
         H2.XData = radius * cos(th) + x;
         H2.YData = radius * sin(th) + y;
     
@@ -340,7 +335,7 @@ for nf= 1:Nframes_f,
         phi = unwrap(phi);%tribolet
         [filtered,z] = filter(B,A,phi,z);
          %filtragem passo a alto
-        win.put(filtered);
+        win.put(filtered)
     % ================================================================
     % ================================================================
     
