@@ -42,7 +42,7 @@ clear all
 close all
 clc
 
-Mode_f= 1;         % Select the mode of operation
+Mode_f= 2;         % Select the mode of operation
 debug_f= 0;        % Set the debug mode of operation
 filename_f= 'realsignals/OutFiles/I_seg_22.mat';      % File name for Mode 2 od operation
 
@@ -210,7 +210,7 @@ axy= 0.1; % coordinates gain
 ar= 0.1;  %radius gain
 
 %% Sliding window for time plot
-win = slidingwindow(Nd_f,Nd_f*200,'left');
+win = slidingwindow(Nd_f,Nd_f*400,'left');
 
 %% Plot Setup
 figure(1)                % Creates a dummy variable 
@@ -235,7 +235,7 @@ end
 
 figure(2)
 H4 = plot(win.get());
-H4.XData = (0:Nd_f*200-1)/(Fs_f/D_f);
+H4.XData = (0:Nd_f*400-1)/(Fs_f/D_f);
 axis([0 inf -1 1]);
 grid on
 % =========================================================<=======
