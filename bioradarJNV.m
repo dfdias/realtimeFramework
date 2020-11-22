@@ -44,7 +44,7 @@ clc
 
 Mode_f= 2;         % Select the mode of operation
 debug_f= 0;        % Set the debug mode of operation
-filename_f= 'realsignals/OutFiles/I_seg_22.mat';      % File name for Mode 2 od operation
+filename_f= 'BioRadarChannelFile.mat';      % File name for Mode 2 od operation
 
 
 T_f= 30;           % Acquisition time in seconds. Only for mode 1 and 3
