@@ -57,17 +57,17 @@ switch Mode_f,
         Fc_f= 5.8e9;             % Analog Carrier Frequency
         Fo_f= 1e4;               % Transmitted sinusoid frequency
         Fs_f= 1e5;               % Sampling Frequency
-        N_f= 20000;              % Number of samples per frame
+        N_f= 2000;              % Number of samples per frame
         ar_f= 0.006;             % Breathing amplitude
         Fb_f= 0.31;              % Breathing frequency
         d1_f= 2;                 % Equivalent distance to the static objects
         sig_f= 0.01;             % Channel noise STD
         D1_f= 20;                % Decimation factor 1
-        D2_f= 50;                 % Decimation factor 2
+        D2_f= 5;                 % Decimation factor 2
         D_f= D1_f*D2_f;          % Total decimation factor
+        fprintf('Fsd= %d Hz\n',Fs_f/D_f) % Decimated sampling frequency
         Nd_f = N_f/(D1_f*D2_f);
-        Fsd_f= Fs_f/D_f;         % Decimated signal sampling frequency
-        fprintf('Fsd= %d Hz\n',Fsd_f) % Decimated sampling frequency
+        Fsd_f= Fs_f/Nd_f;        % 
         % Create the BioRadar channel object
         brm_f= BioRadarChannel(Fs_f,Fc_f,N_f,ar_f,Fb_f,d1_f);
         brm_f.nd= 0.005;         % Noise Density Power
@@ -212,9 +212,7 @@ Fa= Fs_f/(D_f);
 [B,A]= butter(1,0.5/(Fa/2),'high');
 
 %% Circular Buffer
-NumberFramesInCircularBuffer= floor(4*Fsd_f/Nd_f);
-fprintf('Number of Samples in the Circular Buffer= %d samples\n',NumberFramesInCircularBuffer*Nd_f)
-buff = circularbuffer(Nd_f,NumberFramesInCircularBuffer);
+buff = circularbuffer(Nd_f,Nd_f*5);
 
 %% fitcorrect memory filter gains setup
 axy= 0.1; % coordinates gain

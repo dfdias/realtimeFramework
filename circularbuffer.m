@@ -1,15 +1,22 @@
 classdef circularbuffer < handle
+% CIRCULARBUFFER
+% This object implements a circular buffer with 3 methods
+% Constructor obj= circularbuffer(N,len)
+% N number of samples of each frame
+% len Number of frames of the circular buffer
 
+% Duarte Dias
+% November 2020
     
     properties
-        buffer  %circular buffer
-        p1      %ponteiro1
-        len     %number of frames
-        N       %frame size
+        buffer  % circular buffer
+        p1      % ponteiro1
+        len     % number of frames
+        N       % frame size
     end
     
     methods 
-        function obj = circularbuffer(len,N) %constructor
+        function obj = circularbuffer(N,len) %constructor
             obj.p1 = 0; %write pointer| aponta para a posição de escrita
             obj.len = len;
             obj.N = N;
