@@ -43,7 +43,7 @@ clear all
 close all
 clc
 
-Mode_f= 1;         % Select the mode of operation
+Mode_f= 2;         % Select the mode of operation
 debug_f= 0;        % Set the debug mode of operation
 filename_f= 'BioRadarChannelFile.mat';      % File name for Mode 2 od operation
 
@@ -63,7 +63,7 @@ switch Mode_f,
         d1_f= 2;                 % Equivalent distance to the static objects
         sig_f= 0.01;             % Channel noise STD
         D1_f= 20;                % Decimation factor 1
-        D2_f= 50;                 % Decimation factor 2
+        D2_f= 50;                % Decimation factor 2
         D_f= D1_f*D2_f;          % Total decimation factor
         Nd_f = N_f/(D1_f*D2_f);
         Fsd_f= Fs_f/D_f;         % Decimated signal sampling frequency
@@ -95,6 +95,7 @@ switch Mode_f,
         D_f= D1_f*D2_f;                    % Total decimation factor
         MG_f= max(abs(g_f));               % 
         Nd_f = N_f/(D1_f*D2_f);
+        Fsd_f= Fs_f/D_f;                   % Decimated signal sampling frequency
     case 3       % Real Time DSP using an USRP
         disp('Real Time DSP using an USRP')
         % Check for the presence of the USRP

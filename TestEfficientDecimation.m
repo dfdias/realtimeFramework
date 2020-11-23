@@ -17,7 +17,7 @@ D1= 20;
 D2= 50;
 
 N= 1e6;         % number of samples of the input signal
-Nf= 1e4;        % Nuber of sampes per frame
+Nf= 1e4;        % Number of samples per frame
 
 Fsd= Fs/(D1*D2);
 fprintf('Decimated Sampling Frequency= %d Hz\n', Fsd)
@@ -38,7 +38,7 @@ end
 
 
 % Test 2 with the dsp lib
-disp('Test 1')
+disp('Test 2')
 h1= fir1(D1*10,1/D1);
 figure(1)
 freqz(h1,1,2^16,Fs)
