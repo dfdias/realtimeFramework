@@ -35,20 +35,19 @@
 % 16/09/2020 - O Modo 2 está quase pronto. Falta definir de forma
 % conveniente a frequência de amostragem antes e dpois da decimação e o
 % tamanho dos buffers.
-% 22/11/2020 - Introduxiu-se a decimação por 1000 em dois estágios
-% 
+% 22/11/2020 - Introduziu-se a decimação por 1000 em dois estágios
+%
 % ===========================================================
 
 clear all
-close all
 clc
 
 Mode_f= 2;         % Select the mode of operation
 debug_f= 0;        % Set the debug mode of operation
-filename_f= 'BioRadarChannelFile.mat';      % File name for Mode 2 od operation
+filename_f= 'realsignals/OutFiles/I_seg_16.mat';      % File name for Mode 2 of operation
 
 
-T_f= 30;           % Acquisition time in seconds. Only for mode 1 and 3
+T_f= 30;           % Acquisition time in seconds. Only for Mode 1 and 3. Ignored for Mode 2
 
 %% Prepare for each type of input signals
 switch Mode_f,
@@ -76,26 +75,21 @@ switch Mode_f,
         brm_f.Theta= -pi/3;      % Constant Phase shift
         brm_f.d0= 1.009;         % Distance to the chest wall
         
-        % Create the sinusoidal generator objec
-        sine1_f = dsp.SineWave(1,Fo_f);
-        sine1_f.SampleRate= Fs_f;
-        sine1_f.ComplexOutput= 1;
-        sine1_f.SamplesPerFrame= N_f;
-        
-        
     case 2       % Signal from a real acquisition (baseband decimated)
         disp('Signal from a recorded acquisition')
         gstruct_f= load(filename_f);       % Read the data and parameters
         g_f= gstruct_f.x;                  % Received signal
+        M_f= max(abs(g_f))
+        g_f= g_f/M_f;
         Fs_f= gstruct_f.Fs;                % Sampling frequency
         Fo_f= gstruct_f.Fo;                % Transmitted sinusoid frequency
-        N_f= 2000;                         % Number of Samples per Frame
+        N_f= 20000;                        % Number of Samples per Frame
         D1_f= 20;                          % Decimation Factor 1
         D2_f= 50;                          % Decimation Factor 2
         D_f= D1_f*D2_f;                    % Total decimation factor
-        MG_f= max(abs(g_f));               % 
         Nd_f = N_f/(D1_f*D2_f);
         Fsd_f= Fs_f/D_f;                   % Decimated signal sampling frequency
+        
     case 3       % Real Time DSP using an USRP
         disp('Real Time DSP using an USRP')
         % Check for the presence of the USRP
@@ -107,15 +101,16 @@ switch Mode_f,
         end
         
         % Set all the necessary variables for Real Time operation
-        Fc_f = 4.0e9;                    % Carrier frequency 1.5Ghz
+        Fc_f = 5.8e9;                    % Carrier frequency 5.8Ghz
         rxgain_f = 70;                   % Receiver gain
         txgain_f = 50;                   % Tramitter gain
         MasterClockRate_f = 5e6;         % Sampling rate (5 MHz to 56 MHz)
         N_f = 1024*16;                   % Number of Samples per Frame
         Dusrp_f= 50;                     % USRP decimation factor
         Fs_f= MasterClockRate_f/Dusrp_f;     % Sampling rate
-        D1_f= 64;                        % Decimation Factor 1
-        D2_f= 1;                        % Decimation Factor 2
+        D1_f= 20;                        % Decimation Factor 1
+        D2_f= 50;                        % Decimation Factor 2
+        Fsd_f= Fs_f/D_f;                 % Decimated signal sampling frequency
         
         % Configure the USRP receiver
         display('Setting parameters for the reception channel...')
@@ -158,7 +153,7 @@ end
 
 Nframes_f= floor(Fs_f*T_f/N_f);   % Number of Frames to Process
 
-% Create the sinusoidal generator objec
+% Create the sinusoidal generator object
 sine1_f = dsp.SineWave(1,Fo_f);
 sine1_f.SampleRate= Fs_f;
 sine1_f.ComplexOutput= 1;
@@ -169,6 +164,9 @@ h1_f= fir1(D1_f*10,1/D1_f);
 firdecim1_f = dsp.FIRDecimator('DecimationFactor',D1_f,'Numerator',h1_f);
 h2_f= fir1(D2_f*10,1/D2_f);
 firdecim2_f = dsp.FIRDecimator('DecimationFactor',D2_f,'Numerator',h2_f);
+% Low-Pass filter to reduce the noise
+hlp_f= fir1(50,10/(Fs_f/(2*D_f)));
+firlowpass_f= dsp.FIRFilter(hlp_f);
 
 if debug_f
     % Verify the filter frequency response
@@ -200,7 +198,7 @@ end
 % ================================================================
 % ================================================================
 % Put the Inicialization code here
-% Inicialize the variables of the 
+% Inicialize the variables of the
 x= 0;
 y= 0 ;
 radius= 0;
@@ -213,7 +211,7 @@ Fa= Fs_f/(D_f);
 [B,A]= butter(1,0.5/(Fa/2),'high');
 
 %% Circular Buffer
-NumberFramesInCircularBuffer= floor(4*Fsd_f/Nd_f);
+NumberFramesInCircularBuffer= floor(8*Fsd_f/Nd_f);
 fprintf('Number of Samples in the Circular Buffer= %d samples\n',NumberFramesInCircularBuffer*Nd_f)
 buff = circularbuffer(Nd_f,NumberFramesInCircularBuffer);
 
@@ -225,14 +223,23 @@ ar= 0.1;  %radius gain
 NumberFramesSlidingWindow= 400;
 sliwin = slidingwindow(Nd_f,Nd_f*NumberFramesSlidingWindow,'left');
 
+% Sliding window for the circle estimation
+sliwinP = slidingwindow(Nd_f,Nd_f*NumberFramesSlidingWindow,'left');
+
 %% Plot Setup
-figure(1)                % Creates a dummy variable 
-dum= ones(1,Nd_f);            
+
+% Plot of the received complex signal and the circle fitr estimation
+figure(1)
+dum= ones(1,Nd_f);
 dum= dum+1j*dum;
-H1= plot(dum,'o');
+H1= plot(dum,'ro');
+hold on
+H1c= plot(dum,'gx');
+hold off
 axis(1*[-1 1 -1 1]);
+axis square
 grid on
-%generates the circle plot
+% generates the circle plot
 if Mode_f == 2 | Mode_f == 1,
     radius = 1;
     th = linspace(0,2*pi,200);
@@ -241,27 +248,51 @@ if Mode_f == 2 | Mode_f == 1,
     yunit = radius * sin(th) + 0;
     hold on
     phi = linspace(0,2*pi,200);
-    H2 = plot(xunit,yunit,'o');
+    H2 = plot(xunit,yunit,'.');
     hold off
+    title('frame of signal g(n) and circle fitting')
 end
 
-
+% Sliding window of the respiratory signal
 figure(2)
 Td_f= D_f/Fs_f;
 td_f= (0:Nd_f*NumberFramesSlidingWindow-1)*Td_f;
-H4 = plot(td_f, sliwin.get());
+H3 = plot(td_f, sliwin.get());
 axis([0 inf -1 1]);
 grid on
 xlabel('seg.')
-% =========================================================<=======
+title('Respiratory signal')
+
+% Plot for the absolute value of the x y coordinates of the circle fitting
+figure(3)
+H4= plot(td_f, sliwinP.get());
+axis([0 inf -1 1])
+grid on
+xlabel('seg.')
+title('abs circle coordinates')
+
+% Plot for the circular buffer signal
+figure(4)
+plot(0,0)
+axis([-1 1 -1 1])
+axis square
+title('Circular buffer signal')
+
+
+% Use this special function to show all figures non overlapping
+placeFigures;
+
 % ================================================================
-    th = linspace(0,2*pi,200);
+% ================================================================
+th = linspace(0,2*pi,200);
 
 
 %% Main Loop DSP
 % This main loop process a frame at a time for all modes of operation
 k_f= 0;                         % Auxiliary Counter
 nk= 1:N_f;                      % Auxiliary vector for efficiency
+Pr= zeros(Nframes_f,3);         % Vector to store the circle estimation
+dataLen_f= N_f;                % For compatibility with Modes 1 and 2
 tic
 for nf= 1:Nframes_f,
     % Get a new frame signal according to the selected input
@@ -294,73 +325,78 @@ for nf= 1:Nframes_f,
             
     end % Switch
     
-    if (Mode_f == 3) & (dataLen_f ~= 0),
-        % Process the frame
-        k_f= k_f+1;
+    if (dataLen_f ~= 0),
         % Move the signal to the base band
-        g_f= r_f.*conj(s_f);
-        d_f = firdecim1_f(g_f);
-        d_f = firdecim2_f(d_f);
+        g= r_f.*conj(s_f);
+        % Decimate the signal
+        d1_f = firdecim1_f(g);
+        d_f = firdecim2_f(d1_f);
+        % Remove out of band noise
+        d_f= firlowpass_f(d_f);
     end
-    if (Mode_f == 2)
-        g = r_f.*conj(s_f);
-        d_f = firdecim1_f(g);
-        d_f = firdecim2_f(d_f);
-    end
-    if (Mode_f == 1)
-        g = r_f.*conj(s_f);
-        d_f = firdecim1_f(g);
-        d_f = firdecim2_f(d_f);
-    end
-        
-     
+    
+    
+    % Update the data plot for the received complex signal and the circle fit estimation
     % Later put this plot in debug mode
-        H1.XData= real(d_f);
-        H1.YData= imag(d_f);
-        H2.XData = radius * cos(th) + x;
-        H2.YData = radius * sin(th) + y;
+    H1.XData= real(d_f);
+    H1.YData= imag(d_f);
+    H1c.XData= real(dfit);
+    H1c.YData= imag(dfit);
+    H2.XData = radius * cos(th) + x;
+    H2.YData = radius * sin(th) + y;
     
-    %ideal x= 0 y = 0 and adjsuted d signal ploting
-        H5.XData = real(dfit);
-        H5.YData = imag(dfit);
-        xunit = radius * cos(th) + 0;
-        yunit = radius * sin(th) + 0;
-        H6.XData = xunit;
-        H6.YData = yunit;
+    % Moving window breathing signal plot
+    H3.YData =sliwin.get();
+    if (Mode_f == 1) | (Mode_f == 2),
+        %pause(N_f/Fs_f)
+    end
     
-    %moving window breathing signal plot
-        H4.YData =sliwin.get();
-        drawnow
-        if (Mode_f == 1) | (Mode_f == 2),
-            pause(N_f/Fs_f)
+    % Moving window breathing signal plot
+    H4.YData =sliwinP.get();
+    
+    % Update all the plots
+    drawnow
+    
+    % ================================================================
+    % ================================================================
+    %% DSP code
+    buff.put(d_f);
+    df = buff.get();
+    figure(4)
+    plot(df,'.r')
+    title('Circular buffer signal')
+    
+    %% circle fitting
+    %gera matriz para o hyperfix
+    auxA = real(df);
+    auxB = imag(df);
+    P = HyperSVD([auxA,auxB]);          % foi escolhido o svd por uma questão de estabilidade
+    
+    %% Heuristic algorithms to limit the ampitude of the (x,y) coordinates and radius
+    Lim= 0.5;
+    for nl= 1:3,
+        if abs(P(nl)) > Lim,
+            P(nl)= sign(P(nl))*Lim;
         end
+    end
     
-    % ================================================================
-    % ================================================================
-        %% DSP code
-        buff.put(d_f)
-        df = buff.get();
-        figure(3)
-        plot(df,'.r')
-        %% circle fitting
-        %gera matriz para o hyperfix
-        auxA = real(df);
-        auxB = imag(df);
-        P = HyperSVD([auxA,auxB]);%foi escolhido o svd por uma questão de estabildiade
-
-
-        %% Low Pass Filter
-        x = axy*P(1) + (1-axy)*x;
-        y = axy*P(2) + (1-axy)*y;
-        radius = ar*P(3) + (1-ar)*radius;
-        dfit = (real(d_f)-x) + j*(imag(d_f)-y);
-
-        %% Angle conditioning
-        phi = angle(dfit);
-        phi = unwrap(phi);%tribolet
-        [filtered,z] = filter(B,A,phi,z);
-         %filtragem passo a alto
-        sliwin.put(filtered);
+    Pr(nf,:)= P;
+    sliwinP.put(abs(P(1)+j*P(2)))
+    
+    %% Low Pass Filter the circle fitting parameters
+    x = axy*P(1) + (1-axy)*x;                       % x coordinate of the circle
+    y = axy*P(2) + (1-axy)*y;                       % y coordinate of the circle
+    radius = ar*P(3) + (1-ar)*radius;               % radius of the circle
+    
+    % Removes the complex DC component due to the static obstacles
+    dfit = (real(d_f)-x) + j*(imag(d_f)-y);
+    
+    %% Angle conditioning
+    phi = angle(dfit);
+    phi = unwrap(phi);                  % tribolet algorithm
+    [phif,z] = filter(B,A,phi,z);
+    % High Pass filtering
+    sliwin.put(phif);
     % ================================================================
     % ================================================================
     
@@ -373,6 +409,4 @@ if (Mode_f == 3),
 end
 release(firdecim1_f)
 release(firdecim2_f)
-
-
 
