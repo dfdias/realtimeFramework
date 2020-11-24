@@ -36,6 +36,11 @@
 % conveniente a frequência de amostragem antes e dpois da decimação e o
 % tamanho dos buffers.
 % 22/11/2020 - Introduziu-se a decimação por 1000 em dois estágios
+% 23/11/2020 - Arrumação geral do código e introdução de funcionalidades de
+% debug e visualização do circle fitting. Também foi implementada a
+% regularização da estimativa do circle introduzindo limites na amplitude
+% máxima dos parâmetros
+% 24/11/2020 - Introdução de um controlo automático de ganho digital
 %
 % ===========================================================
 
@@ -44,7 +49,7 @@ clc
 
 Mode_f= 2;         % Select the mode of operation
 debug_f= 0;        % Set the debug mode of operation
-filename_f= 'realsignals/OutFiles/I_seg_16.mat';      % File name for Mode 2 of operation
+filename_f= 'realsignals/OutFiles/I_seg_22.mat';      % File name for Mode 2 of operation
 
 
 T_f= 30;           % Acquisition time in seconds. Only for Mode 1 and 3. Ignored for Mode 2
@@ -79,8 +84,6 @@ switch Mode_f,
         disp('Signal from a recorded acquisition')
         gstruct_f= load(filename_f);       % Read the data and parameters
         g_f= gstruct_f.x;                  % Received signal
-        M_f= max(abs(g_f))
-        g_f= g_f/M_f;
         Fs_f= gstruct_f.Fs;                % Sampling frequency
         Fo_f= gstruct_f.Fo;                % Transmitted sinusoid frequency
         N_f= 20000;                        % Number of Samples per Frame
@@ -151,7 +154,14 @@ switch Mode_f,
 end
 
 
+%% Incialization of the Framework variables
+
 Nframes_f= floor(Fs_f*T_f/N_f);   % Number of Frames to Process
+
+% Automatic gain control (AGC) for the input signals
+M_f= 1e-6;          % Inicialization of the estimation of the maximum amplitude input signal
+% Low-Pass filter real pole amplitude for the AGC
+aAGC= 0.9;
 
 % Create the sinusoidal generator object
 sine1_f = dsp.SineWave(1,Fo_f);
@@ -165,7 +175,7 @@ firdecim1_f = dsp.FIRDecimator('DecimationFactor',D1_f,'Numerator',h1_f);
 h2_f= fir1(D2_f*10,1/D2_f);
 firdecim2_f = dsp.FIRDecimator('DecimationFactor',D2_f,'Numerator',h2_f);
 % Low-Pass filter to reduce the noise
-hlp_f= fir1(50,10/(Fs_f/(2*D_f)));
+hlp_f= fir1(50,10/(Fsd_f/2));
 firlowpass_f= dsp.FIRFilter(hlp_f);
 
 if debug_f
@@ -176,6 +186,7 @@ if debug_f
     freqz(firdecim2_f);
     pause
 end
+
 % Configure the sine wave generator
 s_f= sine1_f();
 
@@ -207,17 +218,16 @@ dfit= 0;
 
 %% arc corretion high pass filter definition
 z= 1;
-Fa= Fs_f/(D_f);
-[B,A]= butter(1,0.5/(Fa/2),'high');
+[B,A]= butter(1,0.1/(Fsd_f/2),'high');
 
 %% Circular Buffer
-NumberFramesInCircularBuffer= floor(8*Fsd_f/Nd_f);
+NumberFramesInCircularBuffer= floor(16*Fsd_f/Nd_f);
 fprintf('Number of Samples in the Circular Buffer= %d samples\n',NumberFramesInCircularBuffer*Nd_f)
 buff = circularbuffer(Nd_f,NumberFramesInCircularBuffer);
 
 %% fitcorrect memory filter gains setup
-axy= 0.1; % coordinates gain
-ar= 0.1;  %radius gain
+axy= 0.9; % coordinates gain
+ar= 0.9;  %radius gain
 
 %% Sliding window for time plot
 NumberFramesSlidingWindow= 400;
@@ -228,7 +238,7 @@ sliwinP = slidingwindow(Nd_f,Nd_f*NumberFramesSlidingWindow,'left');
 
 %% Plot Setup
 
-% Plot of the received complex signal and the circle fitr estimation
+% Plot of the received complex signal and the circle fiter estimation
 figure(1)
 dum= ones(1,Nd_f);
 dum= dum+1j*dum;
@@ -236,7 +246,7 @@ H1= plot(dum,'ro');
 hold on
 H1c= plot(dum,'gx');
 hold off
-axis(1*[-1 1 -1 1]);
+axis(2*[-1 1 -1 1]);
 axis square
 grid on
 % generates the circle plot
@@ -258,7 +268,7 @@ figure(2)
 Td_f= D_f/Fs_f;
 td_f= (0:Nd_f*NumberFramesSlidingWindow-1)*Td_f;
 H3 = plot(td_f, sliwin.get());
-axis([0 inf -1 1]);
+axis([0 inf -2 2]);
 grid on
 xlabel('seg.')
 title('Respiratory signal')
@@ -266,7 +276,7 @@ title('Respiratory signal')
 % Plot for the absolute value of the x y coordinates of the circle fitting
 figure(3)
 H4= plot(td_f, sliwinP.get());
-axis([0 inf -1 1])
+axis([0 inf -2 2])
 grid on
 xlabel('seg.')
 title('abs circle coordinates')
@@ -292,7 +302,8 @@ th = linspace(0,2*pi,200);
 k_f= 0;                         % Auxiliary Counter
 nk= 1:N_f;                      % Auxiliary vector for efficiency
 Pr= zeros(Nframes_f,3);         % Vector to store the circle estimation
-dataLen_f= N_f;                % For compatibility with Modes 1 and 2
+dataLen_f= N_f;                 % For compatibility with Modes 1 and 2
+
 tic
 for nf= 1:Nframes_f,
     % Get a new frame signal according to the selected input
@@ -309,9 +320,9 @@ for nf= 1:Nframes_f,
             
         case 3
             % Real Time DSP using an USRP
-            s_f= sine1_f();               % Sinudoid wo (digital modulation)
-            underrun_f= tx_SDRu_f(s_f);                       % Transmit a frame
-            [r_f,dataLen_f,overrun_f] = rx_SDRu_f();            % Reads a frame of the input signal
+            s_f= sine1_f();                 % Sinudoid wo (digital modulation)
+            underrun_f= tx_SDRu_f(s_f);                    % Transmit a frame
+            [r_f,dataLen_f,overrun_f] = rx_SDRu_f();       % Reads a frame of the input signal
             if (length(dataLen_f) == 0),
                 disp('Empty frame')
             end
@@ -323,7 +334,19 @@ for nf= 1:Nframes_f,
                 disp('overrun');
             end
             
-    end % Switch
+    end     % Switch
+    
+    % Automatic Gain Control
+    Me_f= max(abs(r_f));
+    if Me_f/M_f > 10,
+        M_f= Me_f;
+    end
+    if M_f/Me_f > 10,
+        M_f= Me_f;
+    end
+    M_f= aAGC*M_f + (1-aAGC)*Me_f;        % Low passfilter of the AGC
+    r_f= r_f/M_f;                         % Adjust the amplitude frame a frame (AGC
+    
     
     if (dataLen_f ~= 0),
         % Move the signal to the base band
@@ -342,11 +365,11 @@ for nf= 1:Nframes_f,
     H1.YData= imag(d_f);
     H1c.XData= real(dfit);
     H1c.YData= imag(dfit);
-    H2.XData = radius * cos(th) + x;
-    H2.YData = radius * sin(th) + y;
+    H2.XData= radius * cos(th) + x;
+    H2.YData= radius * sin(th) + y;
     
     % Moving window breathing signal plot
-    H3.YData =sliwin.get();
+    H3.YData= sliwin.get();
     if (Mode_f == 1) | (Mode_f == 2),
         %pause(N_f/Fs_f)
     end
@@ -364,6 +387,7 @@ for nf= 1:Nframes_f,
     df = buff.get();
     figure(4)
     plot(df,'.r')
+    axis square
     title('Circular buffer signal')
     
     %% circle fitting
@@ -373,7 +397,7 @@ for nf= 1:Nframes_f,
     P = HyperSVD([auxA,auxB]);          % foi escolhido o svd por uma questão de estabilidade
     
     %% Heuristic algorithms to limit the ampitude of the (x,y) coordinates and radius
-    Lim= 0.5;
+    Lim= 1;
     for nl= 1:3,
         if abs(P(nl)) > Lim,
             P(nl)= sign(P(nl))*Lim;
@@ -382,11 +406,12 @@ for nf= 1:Nframes_f,
     
     Pr(nf,:)= P;
     sliwinP.put(abs(P(1)+j*P(2)))
+    %sliwinP.put(M_f)
     
     %% Low Pass Filter the circle fitting parameters
-    x = axy*P(1) + (1-axy)*x;                       % x coordinate of the circle
-    y = axy*P(2) + (1-axy)*y;                       % y coordinate of the circle
-    radius = ar*P(3) + (1-ar)*radius;               % radius of the circle
+    x = axy*x + (1-axy)*P(1);                       % x coordinate of the circle
+    y = axy*y + (1-axy)*P(2);                       % y coordinate of the circle
+    radius = ar*radius + (1-ar)*P(3);               % radius of the circle
     
     % Removes the complex DC component due to the static obstacles
     dfit = (real(d_f)-x) + j*(imag(d_f)-y);
@@ -394,8 +419,7 @@ for nf= 1:Nframes_f,
     %% Angle conditioning
     phi = angle(dfit);
     phi = unwrap(phi);                  % tribolet algorithm
-    [phif,z] = filter(B,A,phi,z);
-    % High Pass filtering
+    [phif,z] = filter(B,A,phi,z);       % High Pass filtering
     sliwin.put(phif);
     % ================================================================
     % ================================================================
