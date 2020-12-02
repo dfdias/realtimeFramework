@@ -50,17 +50,10 @@ clc
 Mode_f= 2;         % Select the mode of operation
 debug_f= 0;        % Set the debug mode of operation
 filename_f= 'BioRadarChannelFile.mat';      % File name for Mode 2 of operation
-plots = 0
+filename_g = 'stuff.mat'
 
 T_f= 30;           % Acquisition time in seconds. Only for Mode 1 and 3. Ignored for Mode 2
 
-%% configuring json and socket
-address = '127.0.0.1'
-port = 4001
-payload = struct();
-sock = tcpip(address,port);
-sock.OutputBufferSize = 512;
-fopen(sock);
 %% Prepare for each type of input signals
 switch Mode_f,
     case 1       % Mathematical Model input signal
@@ -222,7 +215,8 @@ y= 0 ;
 radius= 0;
 dfit= 0;
 
-
+payload.N = N_f
+payload.Fs = Fs_f
 
 
 %% arc corretion high pass filter definition
@@ -246,7 +240,7 @@ sliwin = slidingwindow(Nd_f,Nd_f*NumberFramesSlidingWindow,'left');
 sliwinP = slidingwindow(Nd_f,Nd_f*NumberFramesSlidingWindow,'left');
 
 %% Plot Setup
-if plots == 1
+
 % Plot of the received complex signal and the circle fiter estimation
 figure(1)
 dum= ones(1,Nd_f);
@@ -304,11 +298,8 @@ placeFigures;
 % ================================================================
 % ================================================================
 th = linspace(0,2*pi,200);
-end
-
-%%payload data
-payload.N = Nd_f
-payload.Fs = Fsd_f
+%%load comparision matrix
+debug = load(filename_g)
 
 %% Main Loop DSP
 % This main loop process a frame at a time for all modes of operation
@@ -370,7 +361,7 @@ for nf= 1:Nframes_f,
         % Remove out of band noise
         d_f= firlowpass_f(d_f);
     end
-    if plots == 1
+    
     
     % Update the data plot for the received complex signal and the circle fit estimation
     % Later put this plot in debug mode
@@ -393,18 +384,17 @@ for nf= 1:Nframes_f,
     
     % Update all the plots
     drawnow
-    end
+    
     % ================================================================
     % ================================================================
     %% DSP code
     buff.put(d_f);
     df = buff.get();
-   if plots == 1
     figure(4)
     plot(df,'.r')
     axis square
     title('Circular buffer signal')
-   end; 
+    
     %% circle fitting
     %gera matriz para o hyperfix
     auxA = real(df);
@@ -420,9 +410,7 @@ for nf= 1:Nframes_f,
     end
     
     Pr(nf,:)= P;
-    sliwinP.put(abs(P(1)+j*P(2)))
-    %sliwinP.put(M_f)
-    
+
     %% Low Pass Filter the circle fitting parameters
     x = axy*x + (1-axy)*P(1);                       % x coordinate of the circle
     y = axy*y + (1-axy)*P(2);                       % y coordinate of the circle
@@ -437,20 +425,19 @@ for nf= 1:Nframes_f,
     [phif,z] = filter(B,A,phi,z);       % High Pass filtering
     sliwin.put(phif);
     % ================================================================
-    [pxx,f] = pwelch(sliwin.get(),[],[],2048,Fsd_f);
-    br = f(find(pxx == max(pxx)));
     % ================================================================
-    payload.br = br;
-    payload.signal = phi;
-    json = jsonencode(payload);
-    fwrite(sock,json)
+   %error analysis
+   debug_signal = debug.s(nf,:)';
+   debug_g = debug.g(nf,:)';
+   debug_d1 = debug.d1(nf,:)';
+   debug_d = debug.d(nf,:)';
+   debug_rx = debug.rx(nf,:)';
+   err_signal = s_f-debug_signal
+   err_g = g -debug_g
+   
 end % Main Loop DSP
 
 disp(['Acquisition Time= ' num2str(toc)])
 
-if (Mode_f == 3),
-    release(rx_SDRu_f)
-end
 release(firdecim1_f)
 release(firdecim2_f)
-fclose(sock)
