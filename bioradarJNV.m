@@ -47,20 +47,20 @@
 clear all
 clc
 
-Mode_f= 2;         % Select the mode of operation
+Mode_f= 1;         % Select the mode of operation
 debug_f= 0;        % Set the debug mode of operation
 filename_f= 'BioRadarChannelFile.mat';      % File name for Mode 2 of operation
-plots = 0
+plots = 1
 
-T_f= 30;           % Acquisition time in seconds. Only for Mode 1 and 3. Ignored for Mode 2
+T_f= 120;           % Acquisition time in seconds. Only for Mode 1 and 3. Ignored for Mode 2
 
 %% configuring json and socket
-address = '127.0.0.1'
-port = 4001
-payload = struct();
-sock = tcpip(address,port);
-sock.OutputBufferSize = 512;
-fopen(sock);
+%address = '127.0.0.1'
+%port = 4001
+%payload = struct();
+%sock = tcpip(address,port);
+%sock.OutputBufferSize = 512;
+%fopen(sock);
 %% Prepare for each type of input signals
 switch Mode_f,
     case 1       % Mathematical Model input signal
@@ -292,7 +292,7 @@ title('abs circle coordinates')
 
 % Plot for the circular buffer signal
 figure(4)
-plot(0,0)
+h5 = plot(0,0)
 axis([-1 1 -1 1])
 axis square
 title('Circular buffer signal')
@@ -400,10 +400,8 @@ for nf= 1:Nframes_f,
     buff.put(d_f);
     df = buff.get();
    if plots == 1
-    figure(4)
-    plot(df,'.r')
-    axis square
-    title('Circular buffer signal')
+     h5.YData = imag(df);
+     h5.XData = real(df)
    end; 
     %% circle fitting
     %gera matriz para o hyperfix
@@ -443,7 +441,7 @@ for nf= 1:Nframes_f,
     payload.br = br;
     payload.signal = phi;
     json = jsonencode(payload);
-    fwrite(sock,json)
+  %  fwrite(sock,json)
 end % Main Loop DSP
 
 disp(['Acquisition Time= ' num2str(toc)])
@@ -453,4 +451,4 @@ if (Mode_f == 3),
 end
 release(firdecim1_f)
 release(firdecim2_f)
-fclose(sock)
+%fclose(sock)

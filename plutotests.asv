@@ -1,0 +1,10 @@
+clear all;
+clc;
+
+Fs = 1e6
+
+radio = findPlutoRadio()
+status = configurePlutoRadio('AD9364',radio.RadioID) %%firmware with greater tunning abilities
+
+radio_dev = sdrdev()
+tx_obj = sdrtx
